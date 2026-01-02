@@ -3,7 +3,7 @@ import { notificationService } from './notificationService';
 
 export const postService = {
     // Create a new post
-    async createPost(authorEmail, content, mediaUrls = [], postType = 'text', visibility = 'connections') {
+    async createPost(authorEmail, content, mediaUrls = [], postType = 'text', visibility = 'connections', socket = null) {
         const { data, error } = await supabase
             .from('posts')
             .insert([{
@@ -20,6 +20,31 @@ export const postService = {
             console.error('Error creating post:', error);
             throw error;
         }
+
+        // Notify connections about the new post
+        try {
+            const { data: connections } = await supabase
+                .from('connections')
+                .select('requester_email, addressee_email')
+                .eq('status', 'accepted')
+                .or(`requester_email.eq.${authorEmail},addressee_email.eq.${authorEmail}`);
+
+            if (connections) {
+                for (const conn of connections) {
+                    const recipientEmail = conn.requester_email === authorEmail ? conn.addressee_email : conn.requester_email;
+                    await notificationService.createNotification({
+                        user_email: recipientEmail,
+                        actor_email: authorEmail,
+                        type: 'mention', // Using mention or a generic 'post' type
+                        content: `shared a new post: "${content.substring(0, 50)}${content.length > 50 ? '...' : ''}"`,
+                        related_id: data.id
+                    }, socket);
+                }
+            }
+        } catch (e) {
+            console.error("Notify connections error", e);
+        }
+
         return data;
     },
 

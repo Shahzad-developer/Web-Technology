@@ -15,25 +15,39 @@ const ChatWindow = ({ chat, currentUserEmail, socket, onInitiateCall, onBack }) 
     };
 
     useEffect(() => {
-        const fetchData = async () => {
+        const fetchMessages = async () => {
             try {
-                const [msgs, { data: prof }] = await Promise.all([
-                    chatService.getMessages(chat.id),
-                    supabase.from('users').select('*').eq('email', otherEmail).single()
-                ]);
+                const msgs = await chatService.getMessages(chat.id);
                 setMessages(msgs || []);
-                setOtherProfile(prof);
                 setTimeout(() => scrollToBottom(false), 100);
             } catch (err) {
-                console.error('Error fetching chat data:', err);
+                console.error('Error fetching messages:', err);
             }
         };
-        fetchData();
+
+        const fetchProfile = async () => {
+            try {
+                const { data: prof, error } = await supabase
+                    .from('profiles')
+                    .select('*')
+                    .eq('email', otherEmail)
+                    .maybeSingle();
+
+                if (prof) {
+                    setOtherProfile(prof);
+                }
+            } catch (err) {
+                console.error('Error fetching profile:', err);
+            }
+        };
+
+        fetchMessages();
+        fetchProfile();
 
         socket?.emit('join_chat', chat.id);
 
         const handleReceiveMessage = (msg) => {
-            if (msg.chat_id === chat.id) {
+            if (msg.chat_id === chat.id && msg.sender_email !== currentUserEmail) {
                 setMessages(prev => [...prev, msg]);
                 setTimeout(() => scrollToBottom(), 50);
             }
@@ -48,17 +62,69 @@ const ChatWindow = ({ chat, currentUserEmail, socket, onInitiateCall, onBack }) 
     const handleSendMessage = async (text) => {
         try {
             const msg = await chatService.saveMessage(chat.id, currentUserEmail, otherEmail, text);
+            // Update local state immediately for better responsiveness
+            setMessages(prev => [...prev, msg]);
             socket?.emit('send_message', msg);
+            setTimeout(() => scrollToBottom(), 50);
         } catch (err) {
             console.error('Error sending message:', err);
         }
     };
 
+    const handleSendVoice = async (blob, duration) => {
+        try {
+            // Logic to upload blob to Supabase Storage would go here
+            // For now, we'll simulate it or use a placeholder if storage isn't set up
+            const fileName = `voice_${Date.now()}.webm`;
+            const { data: uploadData, error: uploadError } = await supabase.storage
+                .from('chat-media')
+                .upload(`${chat.id}/${fileName}`, blob);
+
+            if (uploadError) throw uploadError;
+
+            const { data: { publicUrl } } = supabase.storage
+                .from('chat-media')
+                .getPublicUrl(`${chat.id}/${fileName}`);
+
+            const msg = await chatService.saveMediaMessage(chat.id, currentUserEmail, otherEmail, 'voice', publicUrl, duration);
+            setMessages(prev => [...prev, msg]);
+            socket?.emit('send_message', msg);
+            setTimeout(() => scrollToBottom(), 50);
+        } catch (err) {
+            console.error('Error sending voice message:', err);
+        }
+    };
+
+    const handleSendFile = async (file) => {
+        try {
+            const fileName = `${Date.now()}_${file.name}`;
+            const { data: uploadData, error: uploadError } = await supabase.storage
+                .from('chat-media')
+                .upload(`${chat.id}/${fileName}`, file);
+
+            if (uploadError) throw uploadError;
+
+            const { data: { publicUrl } } = supabase.storage
+                .from('chat-media')
+                .getPublicUrl(`${chat.id}/${fileName}`);
+
+            const msg = await chatService.saveMediaMessage(
+                chat.id, currentUserEmail, otherEmail, 'file', publicUrl, 0,
+                file.name, file.type, file.size
+            );
+            setMessages(prev => [...prev, msg]);
+            socket?.emit('send_message', msg);
+            setTimeout(() => scrollToBottom(), 50);
+        } catch (err) {
+            console.error('Error sending file:', err);
+        }
+    };
+
     // Render Components
     return (
-        <div className="flex-1 flex flex-col bg-[#111722] relative min-w-0">
+        <div className="flex-1 flex flex-col h-full bg-[#111722] relative min-w-0 min-h-0">
             {/* Top Navigation Bar */}
-            <header className="flex items-center justify-between whitespace-nowrap border-b border-[#232f48] px-6 py-3 bg-[#111722] z-10 shadow-sm">
+            <header className="sticky top-0 flex items-center justify-between whitespace-nowrap border-b border-[#232f48] px-6 py-3 bg-[#111722] z-20 shadow-sm shrink-0">
                 <div className="flex items-center gap-4">
                     {onBack && (
                         <button onClick={onBack} className="md:hidden text-slate-400 hover:text-white -ml-2">
@@ -102,7 +168,7 @@ const ChatWindow = ({ chat, currentUserEmail, socket, onInitiateCall, onBack }) 
             </header>
 
             {/* Messages Area */}
-            <div className="flex-1 overflow-y-auto px-6 py-6 flex flex-col gap-6" id="message-container">
+            <div className="flex-1 overflow-y-auto px-6 py-6 flex flex-col gap-6 scrollbar-thin scrollbar-thumb-primary/20 hover:scrollbar-thumb-primary/40 scrollbar-track-transparent" id="message-container">
                 <div className="flex justify-center">
                     <span className="bg-[#232f48] text-[#92a4c9] text-xs px-3 py-1 rounded-full font-medium">Today</span>
                 </div>
@@ -183,7 +249,9 @@ const ChatWindow = ({ chat, currentUserEmail, socket, onInitiateCall, onBack }) 
                     <div className="flex-1 min-h-[44px] flex items-center px-2 py-1">
                         <MessageInput
                             onSend={handleSendMessage}
-                            minimal={true} // New prop to strip default container styles from MessageInput if needed
+                            onSendVoice={handleSendVoice}
+                            onSendFile={handleSendFile}
+                            minimal={true}
                         />
                     </div>
                 </div>

@@ -9,7 +9,19 @@ export const chatService = {
             .order('created_at', { ascending: false });
 
         if (error) throw error;
-        return data || [];
+
+        // Deduplicate in case old data has both A,B and B,A or redundant IDs
+        const unique = [];
+        const seen = new Set();
+        (data || []).forEach(chat => {
+            const recipient = chat.user_1_email === email ? chat.user_2_email : chat.user_1_email;
+            if (!seen.has(recipient)) {
+                seen.add(recipient);
+                unique.push(chat);
+            }
+        });
+
+        return unique;
     },
 
     async getMessages(chatId) {
@@ -24,41 +36,74 @@ export const chatService = {
     },
 
     async createChat(user1Email, user2Email) {
+        // Standardize order to prevent duplicates (user_1 is always alphabetically smaller)
+        const [u1, u2] = [user1Email, user2Email].sort();
+
         // Check if chat already exists
-        const { data: existing } = await supabase
+        const { data: existing, error: searchError } = await supabase
             .from('chats')
             .select('*')
-            .or(`and(user_1_email.eq.${user1Email},user_2_email.eq.${user2Email}),and(user_1_email.eq.${user2Email},user_2_email.eq.${user1Email})`)
-            .single();
+            .eq('user_1_email', u1)
+            .eq('user_2_email', u2)
+            .maybeSingle();
 
         if (existing) return existing;
 
         const { data, error } = await supabase
             .from('chats')
-            .insert([{ user_1_email: user1Email, user_2_email: user2Email }])
+            .insert([{ user_1_email: u1, user_2_email: u2 }])
             .select()
             .single();
 
-        if (error) throw error;
+        if (error) {
+            // If insertion fails due to race condition (duplicate key)
+            if (error.code === '23505') {
+                const { data: retry } = await supabase
+                    .from('chats')
+                    .select('*')
+                    .eq('user_1_email', u1)
+                    .eq('user_2_email', u2)
+                    .maybeSingle();
+                return retry;
+            }
+            throw error;
+        }
         return data;
     },
 
     // Updated to include receiver_email for delivery tracking
-    async saveMessage(chatId, senderEmail, receiverEmail, messageText) {
+    async saveMessage(chatId, senderEmail, receiverEmail, text) {
         const { data, error } = await supabase
             .from('messages')
             .insert([{
                 chat_id: chatId,
                 sender_email: senderEmail,
                 receiver_email: receiverEmail,
-                message_text: messageText,
+                message_text: text,
                 message_type: 'text',
                 status: 'sent'
             }])
             .select()
             .single();
 
-        if (error) throw error;
+        if (error) {
+            console.error('Error saving message:', error);
+            throw error;
+        }
+
+        // Notify recipient of new message
+        try {
+            await notificationService.createNotification({
+                user_email: receiverEmail,
+                actor_email: senderEmail,
+                type: 'message',
+                content: `sent you a message: "${text.substring(0, 50)}${text.length > 50 ? '...' : ''}"`,
+                related_id: chatId
+            });
+        } catch (e) {
+            console.error("Notify message error", e);
+        }
+
         return data;
     },
 

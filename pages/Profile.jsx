@@ -206,7 +206,7 @@ const Profile = () => {
                                             {connectionBtn.text}
                                         </button>
                                         <button
-                                            onClick={() => navigate('/chat')}
+                                            onClick={() => navigate(`/chat?email=${profileEmail}`)}
                                             className="flex-1 md:flex-none h-10 px-6 bg-slate-100 dark:bg-[#232f48] hover:bg-slate-200 dark:hover:bg-[#2d3b55] text-slate-900 dark:text-white border border-slate-200 dark:border-[#3b4c6b] rounded-lg font-bold text-sm transition-colors flex items-center justify-center gap-2"
                                         >
                                             <span className="material-symbols-outlined text-[18px]">mail</span>

@@ -8,6 +8,7 @@ import { supabase } from '../supabase';
 import PostCard from '../components/PostCard';
 import MainLayout from '../components/layout/MainLayout';
 import FeedRightSidebar from '../components/FeedRightSidebar';
+import io from 'socket.io-client';
 
 const Feed = () => {
     const { user } = useAuth();
@@ -24,11 +25,59 @@ const Feed = () => {
     const [mediaType, setMediaType] = useState('');
     const [isPosting, setIsPosting] = useState(false);
     const fileInputRef = useRef(null);
+    const [socket, setSocket] = useState(null);
+    const [campusNews, setCampusNews] = useState([
+        {
+            id: 'news-1',
+            title: 'Annual Tech Symposium 2026',
+            category: 'Events',
+            date: 'Jan 15, 2026',
+            content: 'Join us for the biggest tech gathering of the year featuring industry experts from Google and Microsoft.',
+            image: 'https://images.unsplash.com/photo-1540575861501-7c0011e7a48f?auto=format&fit=crop&q=80&w=800',
+            author: 'Uni Tech Club'
+        },
+        {
+            id: 'news-2',
+            title: 'New Library Hours Announced',
+            category: 'Academic',
+            date: 'Jan 02, 2026',
+            content: 'To support students during finals week, the central library will now remain open 24/7 starting Monday.',
+            image: 'https://images.unsplash.com/photo-1541339907198-e08759dfc3ef?auto=format&fit=crop&q=80&w=800',
+            author: 'Student Affairs'
+        },
+        {
+            id: 'news-3',
+            title: 'Campus Sustainability Initiative',
+            category: 'Campus',
+            date: 'Dec 28, 2025',
+            content: 'The university is launching a new green policy focusing on zero-waste cafeterias and renewable energy.',
+            image: 'https://images.unsplash.com/photo-1503676260728-1c00da094a0b?auto=format&fit=crop&q=80&w=800',
+            author: 'Green Council'
+        }
+    ]);
+
+    useEffect(() => {
+        const backendUrl = import.meta.env.VITE_BACKEND_URL;
+        const newSocket = io(backendUrl, { transports: ['websocket', 'polling'] });
+        setSocket(newSocket);
+
+        newSocket.on('connect', () => {
+            if (user?.email) newSocket.emit('identify', user.email);
+        });
+
+        return () => newSocket.disconnect();
+    }, [user?.email]);
 
     const [activeTab, setActiveTab] = useState('all');
 
     useEffect(() => {
-        if (user?.email) loadFeed(activeTab);
+        if (user?.email) {
+            loadFeed(activeTab);
+        }
+    }, [user?.email, activeTab]);
+
+    useEffect(() => {
+        if (!user?.email) return;
 
         const channel = supabase
             .channel('public:posts')
@@ -66,6 +115,12 @@ const Feed = () => {
             setAcademicUpdates(eventsData);
 
             const connectedEmails = connectionData.map(c => c.connected_email);
+            // Include self in following for a better UX, but connection emails are the priority
+            if (filter === 'following' && connectedEmails.length === 0) {
+                setPosts([]);
+                return;
+            }
+
             connectedEmails.push(user.email);
 
             const apiFilter = filter === 'following' ? 'connections' : 'all';
@@ -74,8 +129,9 @@ const Feed = () => {
             setPosts(feedPosts);
         } catch (err) {
             console.error('Error loading feed:', err);
+        } finally {
+            setLoading(false);
         }
-        setLoading(false);
     };
 
     const handleFileSelect = (e) => {
@@ -98,7 +154,7 @@ const Feed = () => {
                 if (url) mediaUrls.push(url);
             }
 
-            const newPost = await postService.createPost(user.email, newPostContent.trim(), mediaUrls);
+            const newPost = await postService.createPost(user.email, newPostContent.trim(), mediaUrls, 'text', 'connections', socket);
             setPosts([{ ...newPost, author_profile: profile }, ...posts]);
 
             setNewPostContent('');
@@ -145,8 +201,8 @@ const Feed = () => {
                                 key={tab.id}
                                 onClick={() => setActiveTab(tab.id)}
                                 className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-200 ${activeTab === tab.id
-                                        ? 'bg-primary text-white shadow-md'
-                                        : 'text-slate-500 dark:text-[#92a4c9] hover:bg-slate-50 dark:hover:bg-[#1e2736] hover:text-slate-900 dark:hover:text-white'
+                                    ? 'bg-primary text-white shadow-md'
+                                    : 'text-slate-500 dark:text-[#92a4c9] hover:bg-slate-50 dark:hover:bg-[#1e2736] hover:text-slate-900 dark:hover:text-white'
                                     }`}
                             >
                                 {tab.label}
@@ -237,6 +293,26 @@ const Feed = () => {
             {loading ? (
                 <div className="py-8 flex justify-center">
                     <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary"></div>
+                </div>
+            ) : activeTab === 'news' ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {campusNews.map(news => (
+                        <div key={news.id} className="bg-white dark:bg-[#111722] rounded-xl border border-slate-200 dark:border-[#232f48] overflow-hidden shadow-sm hover:shadow-md transition-shadow group">
+                            <div className="h-40 bg-cover bg-center transition-transform group-hover:scale-105 duration-500" style={{ backgroundImage: `url(${news.image})` }} />
+                            <div className="p-4">
+                                <div className="flex justify-between items-center mb-2">
+                                    <span className="text-[10px] font-bold uppercase tracking-wider text-primary bg-primary/10 px-2 py-0.5 rounded">{news.category}</span>
+                                    <span className="text-xs text-slate-400">{news.date}</span>
+                                </div>
+                                <h3 className="font-bold text-slate-900 dark:text-white mb-2 line-clamp-1">{news.title}</h3>
+                                <p className="text-sm text-slate-500 dark:text-[#92a4c9] line-clamp-2 mb-4">{news.content}</p>
+                                <div className="flex items-center justify-between pt-3 border-t border-slate-100 dark:border-[#232f48]">
+                                    <span className="text-xs font-medium text-slate-400 italic">By {news.author}</span>
+                                    <button className="text-primary text-xs font-bold hover:underline">Read More</button>
+                                </div>
+                            </div>
+                        </div>
+                    ))}
                 </div>
             ) : posts.length === 0 ? (
                 <div className="bg-white dark:bg-[#111722] rounded-xl border border-slate-200 dark:border-[#232f48] p-12 text-center shadow-sm">

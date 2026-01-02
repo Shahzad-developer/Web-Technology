@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '../supabase';
 import { profileService } from '../services/profileService';
 import MainLayout from '../components/layout/MainLayout';
+import io from 'socket.io-client';
 import FeedRightSidebar from '../components/FeedRightSidebar'; // Reuse feed sidebar or generic one
 
 const Notifications = () => {
@@ -12,6 +13,24 @@ const Notifications = () => {
     const [notifications, setNotifications] = useState([]);
     const [profiles, setProfiles] = useState({});
     const [loading, setLoading] = useState(true);
+
+    const [socket, setSocket] = useState(null);
+
+    useEffect(() => {
+        const backendUrl = import.meta.env.VITE_BACKEND_URL;
+        const newSocket = io(backendUrl, { transports: ['websocket', 'polling'] });
+        setSocket(newSocket);
+
+        newSocket.on('connect', () => {
+            if (user?.email) newSocket.emit('identify', user.email);
+        });
+
+        newSocket.on('new_notification', (notif) => {
+            setNotifications(prev => [notif, ...prev]);
+        });
+
+        return () => newSocket.disconnect();
+    }, [user?.email]);
 
     useEffect(() => {
         loadNotifications();
@@ -62,6 +81,7 @@ const Notifications = () => {
             'reply': { icon: 'reply', color: 'text-indigo-500', bg: 'bg-indigo-500/10' },
             'share': { icon: 'share', color: 'text-cyan-500', bg: 'bg-cyan-500/10' },
             'mention': { icon: 'alternate_email', color: 'text-yellow-500', bg: 'bg-yellow-500/10' },
+            'message': { icon: 'chat', color: 'text-blue-600', bg: 'bg-blue-600/10' },
         };
         return iconMap[type] || { icon: 'notifications', color: 'text-text-secondary', bg: 'bg-surface-dark' };
     };
@@ -78,10 +98,12 @@ const Notifications = () => {
     };
 
     const handleClick = (notif) => {
-        if (notif.post_id) {
+        if (notif.post_id || notif.type === 'like' || notif.type === 'comment') {
             navigate('/feed');
         } else if (notif.type === 'connection_request' || notif.type === 'connection_accepted') {
             navigate('/connections');
+        } else if (notif.type === 'message') {
+            navigate('/chat');
         } else {
             navigate(`/profile/${encodeURIComponent(notif.actor_email)}`);
         }
@@ -140,8 +162,14 @@ const Notifications = () => {
                                                     {notif.type === 'reply' && 'replied to your comment'}
                                                     {notif.type === 'share' && 'shared your post'}
                                                     {notif.type === 'mention' && 'mentioned you'}
+                                                    {notif.type === 'message' && 'sent you a message'}
                                                 </span>
                                             </p>
+                                            {notif.content && (
+                                                <p className="text-slate-500 dark:text-slate-400 text-xs mt-0.5 truncate italic">
+                                                    {notif.content}
+                                                </p>
+                                            )}
                                             <p className="text-slate-400 dark:text-slate-500 text-xs mt-1 font-medium">{formatTime(notif.created_at)}</p>
                                         </div>
                                         {!notif.is_read && (

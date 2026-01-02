@@ -18,9 +18,9 @@ export const authService = {
         // The trigger handle_new_user should ideally handle the public.users table placement,
         // but we can also do it manually if the trigger isn't set up yet.
         if (data.user) {
-            await supabase.from('users').upsert([
+            await supabase.from('profiles').upsert([
                 {
-                    id: data.user.id,
+                    user_id: data.user.id,
                     email,
                     full_name: fullName,
                     avatar_url: avatarUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${email}`
@@ -47,7 +47,7 @@ export const authService = {
 
     async searchUser(email) {
         const { data, error } = await supabase
-            .from('users')
+            .from('profiles')
             .select('*')
             .eq('email', email)
             .single();
@@ -57,11 +57,15 @@ export const authService = {
 
     async getCurrentUserProfile(id) {
         const { data, error } = await supabase
-            .from('users')
+            .from('profiles')
             .select('*')
-            .eq('id', id)
-            .single();
-        if (error) throw error;
+            .eq('user_id', id)
+            .maybeSingle(); // maybeSingle handles 0 or 1 rows without erroring
+
+        if (error) {
+            console.error('Error fetching current user profile:', error);
+            return null;
+        }
         return data;
     }
 };

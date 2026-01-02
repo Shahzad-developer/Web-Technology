@@ -25,6 +25,12 @@ export default function socketLogic(io) {
             socket.emit('online_users_update', Array.from(onlineUsers));
         });
 
+        // --- Notifications ---
+        socket.on('send_notification', (notif) => {
+            console.log('🔔 Notification received on server for:', notif.user_email);
+            io.to(notif.user_email).emit('new_notification', notif);
+        });
+
         // --- Private Messaging ---
         socket.on('join_chat', (chatId) => {
             socket.join(`chat_${chatId}`);

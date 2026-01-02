@@ -31,13 +31,21 @@ export const notificationService = {
     },
 
     // Create a notification
-    async createNotification(notification) {
-        const { error } = await supabase
+    async createNotification(notification, socket = null) {
+        const { data, error } = await supabase
             .from('social_notifications')
-            .insert([notification]);
+            .insert([notification])
+            .select()
+            .single();
 
         if (error) {
             console.error('Error creating notification:', error);
+            return null;
         }
+
+        if (socket && data) {
+            socket.emit('send_notification', data);
+        }
+        return data;
     }
 };

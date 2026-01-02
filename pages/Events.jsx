@@ -4,40 +4,138 @@ import FeedRightSidebar from '../components/FeedRightSidebar'; // Reusing defaul
 
 const Events = () => {
     const [events, setEvents] = useState([
+        // Career
         {
             id: 1,
-            title: 'Tech Career Fair 2024',
-            date: 'Oct 24, 2024',
+            title: 'Tech Career Fair 2026',
+            date: 'Oct 24, 2026',
             time: '10:00 AM - 4:00 PM',
             location: 'Main Auditorium',
             type: 'Career',
-            image: 'https://images.unsplash.com/photo-1544531586-fde5298cdd40?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.0.3',
+            image: 'https://images.unsplash.com/photo-1540575861501-7c0011e7a48f?auto=format&fit=crop&q=80&w=800',
             attendees: 120
         },
         {
-            id: 2,
-            title: 'Hackathon: Code for Good',
-            date: 'Nov 05, 2024',
-            time: '9:00 AM (48h)',
-            location: 'Engineering Hall',
-            type: 'Competition',
-            image: 'https://images.unsplash.com/photo-1504384308090-c54be3855833?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.0.3',
-            attendees: 350
+            id: 4,
+            title: 'Mock Interview Workshop',
+            date: 'Oct 30, 2026',
+            time: '2:00 PM - 5:00 PM',
+            location: 'Career Center, B-4',
+            type: 'Career',
+            image: 'https://images.unsplash.com/photo-1573497019940-1c28c88b4f3e?auto=format&fit=crop&q=80&w=800',
+            attendees: 45
         },
+        {
+            id: 5,
+            title: 'Resume Building Clinic',
+            date: 'Nov 02, 2026',
+            time: '1:00 PM - 3:00 PM',
+            location: 'Student Hub',
+            type: 'Career',
+            image: 'https://images.unsplash.com/photo-1450101499163-c8848c66ca85?auto=format&fit=crop&q=80&w=800',
+            attendees: 78
+        },
+        // Social
+        {
+            id: 6,
+            title: 'Campus Music Festival',
+            date: 'Oct 15, 2026',
+            time: '6:00 PM - 11:00 PM',
+            location: 'University Green',
+            type: 'Social',
+            image: 'https://images.unsplash.com/photo-1459749411177-042180ce673c?auto=format&fit=crop&q=80&w=800',
+            attendees: 850
+        },
+        {
+            id: 7,
+            title: 'Movie Night: Inception',
+            date: 'Oct 20, 2026',
+            time: '8:00 PM - 10:30 PM',
+            location: 'Open Air Theatre',
+            type: 'Social',
+            image: 'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?auto=format&fit=crop&q=80&w=800',
+            attendees: 200
+        },
+        {
+            id: 8,
+            title: 'Esports Tournament: Finals',
+            date: 'Nov 10, 2026',
+            time: '4:00 PM - 9:00 PM',
+            location: 'Gaming Lounge',
+            type: 'Social',
+            image: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&q=80&w=800',
+            attendees: 320
+        },
+        // Academic
         {
             id: 3,
             title: 'Guest Lecture: AI Ethics',
-            date: 'Nov 12, 2024',
+            date: 'Nov 12, 2026',
             time: '2:00 PM - 3:30 PM',
             location: 'Virtual (Zoom)',
-            type: 'Lecture',
-            image: 'https://images.unsplash.com/photo-1552664730-d307ca884978?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.0.3',
+            type: 'Academic',
+            image: 'https://images.unsplash.com/photo-1552664730-d307ca884978?auto=format&fit=crop&q=80&w=800',
             attendees: 85
+        },
+        {
+            id: 9,
+            title: 'Graduate School Seminar',
+            date: 'Nov 18, 2026',
+            time: '11:00 AM - 1:00 PM',
+            location: 'Education Hall, Rm 102',
+            type: 'Academic',
+            image: 'https://images.unsplash.com/photo-1523050854058-8df90110c9f1?auto=format&fit=crop&q=80&w=800',
+            attendees: 55
+        },
+        {
+            id: 10,
+            title: 'Research Symposium 2026',
+            date: 'Dec 05, 2026',
+            time: '9:00 AM - 6:00 PM',
+            location: 'Science Library',
+            type: 'Academic',
+            image: 'https://images.unsplash.com/photo-1517048676732-d65bc937f952?auto=format&fit=crop&q=80&w=800',
+            attendees: 150
+        },
+        // Competition
+        {
+            id: 2,
+            title: 'Hackathon: Code for Good',
+            date: 'Nov 05, 2026',
+            time: '9:00 AM (48h)',
+            location: 'Engineering Hall',
+            type: 'Competition',
+            image: 'https://images.unsplash.com/photo-1504384308090-c54be3855833?auto=format&fit=crop&q=80&w=800',
+            attendees: 350
+        },
+        {
+            id: 11,
+            title: 'Campus Pitch Competition',
+            date: 'Nov 20, 2026',
+            time: '3:00 PM - 6:00 PM',
+            location: 'Innovation Lab',
+            type: 'Competition',
+            image: 'https://images.unsplash.com/photo-1475721027187-402ad2989a3b?auto=format&fit=crop&q=80&w=800',
+            attendees: 120
+        },
+        {
+            id: 12,
+            title: 'Robotics Battle Royale',
+            date: 'Dec 01, 2026',
+            time: '2:00 PM - 5:00 PM',
+            location: 'Sports Arena',
+            type: 'Competition',
+            image: 'https://images.unsplash.com/photo-1485827404703-89b55fcc595e?auto=format&fit=crop&q=80&w=800',
+            attendees: 450
         }
     ]);
 
     const categories = ['All', 'Career', 'Social', 'Academic', 'Competition'];
     const [activeCategory, setActiveCategory] = useState('All');
+
+    const filteredEvents = activeCategory === 'All'
+        ? events
+        : events.filter(event => event.type === activeCategory);
 
     return (
         <MainLayout rightSidebar={<FeedRightSidebar />}>
@@ -57,8 +155,8 @@ const Events = () => {
                             key={cat}
                             onClick={() => setActiveCategory(cat)}
                             className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors whitespace-nowrap ${activeCategory === cat
-                                    ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 shadow-md'
-                                    : 'bg-white dark:bg-[#1e2736] text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-[#2d3b55] border border-slate-200 dark:border-[#232f48]'
+                                ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 shadow-md'
+                                : 'bg-white dark:bg-[#1e2736] text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-[#2d3b55] border border-slate-200 dark:border-[#232f48]'
                                 }`}
                         >
                             {cat}
@@ -67,7 +165,7 @@ const Events = () => {
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-1 gap-6">
-                    {events.map(event => (
+                    {filteredEvents.map(event => (
                         <div key={event.id} className="bg-white dark:bg-[#1e2736] rounded-xl border border-slate-200 dark:border-[#232f48] overflow-hidden shadow-sm hover:shadow-md transition-shadow group flex flex-col sm:flex-row">
                             {/* Image */}
                             <div

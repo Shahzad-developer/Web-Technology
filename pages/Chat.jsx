@@ -44,6 +44,9 @@ const Chat = () => {
     const [selectedChat, setSelectedChat] = useState(null);
     const [currentUserProfile, setCurrentUserProfile] = useState(null);
     const [socket, setSocket] = useState(null);
+    const [searchQuery, setSearchQuery] = useState('');
+    const [globalSearchResults, setGlobalSearchResults] = useState([]);
+    const [isSearchingGlobal, setIsSearchingGlobal] = useState(false);
 
     // Calling States
     const [incomingCall, setIncomingCall] = useState(null);
@@ -105,37 +108,78 @@ const Chat = () => {
         return () => newSocket.disconnect();
     }, [user.email]);
 
-    useEffect(() => {
-        const fetchData = async () => {
-            const [chatData, profileData] = await Promise.all([
-                chatService.getChats(user.email),
-                authService.getCurrentUserProfile(user.id)
-            ]);
-            let currentChats = chatData;
-            setChats(chatData);
-            setCurrentUserProfile(profileData);
-
-            // Handle deep linking
-            const targetEmail = searchParams.get('email');
-            if (targetEmail && targetEmail !== user.email) {
-                try {
-                    const chat = await chatService.createChat(user.email, targetEmail);
-                    if (chat) {
-                        const exists = currentChats.find(c => c.id === chat.id);
-                        if (!exists) {
-                            currentChats = [chat, ...currentChats];
-                            setChats(currentChats);
-                        }
-                        setSelectedChat(chat);
-                        setSearchParams({});
-                    }
-                } catch (e) {
-                    console.error("Error initiating chat:", e);
+    const handleSelectChat = async (chat) => {
+        if (chat.isNew) {
+            try {
+                const newChat = await chatService.createChat(user.email, chat.user_2_email);
+                if (newChat) {
+                    setChats(prev => {
+                        const exists = prev.find(c => c.id === newChat.id);
+                        if (exists) return prev;
+                        return [newChat, ...prev];
+                    });
+                    setSelectedChat(newChat);
+                    setSearchQuery('');
                 }
+            } catch (err) {
+                console.error("Error initiating chat:", err);
+            }
+        } else {
+            // Ensure we are selecting the full chat object
+            setSelectedChat(chat);
+            setSearchQuery('');
+        }
+    };
+
+    useEffect(() => {
+        if (!user) return;
+
+        let isSubscribed = true;
+
+        const fetchData = async () => {
+            try {
+                const [chatData, profileData] = await Promise.all([
+                    chatService.getChats(user.email),
+                    authService.getCurrentUserProfile(user.id).catch(() => null)
+                ]);
+
+                if (!isSubscribed) return;
+
+                // Deduplicate chats by ID just in case
+                const uniqueChats = [];
+                const seenIds = new Set();
+                (chatData || []).forEach(c => {
+                    if (!seenIds.has(c.id)) {
+                        seenIds.add(c.id);
+                        uniqueChats.push(c);
+                    }
+                });
+
+                setChats(uniqueChats);
+                setCurrentUserProfile(profileData);
+
+                // Handle deep linking from query params
+                const targetEmail = searchParams.get('email');
+                if (targetEmail && targetEmail !== user.email) {
+                    const chat = await chatService.createChat(user.email, targetEmail);
+                    if (chat && isSubscribed) {
+                        setChats(prev => {
+                            if (prev.find(c => c.id === chat.id)) return prev;
+                            return [chat, ...prev];
+                        });
+                        setSelectedChat(chat);
+                        // Clear search params to avoid re-triggering on re-render
+                        setSearchParams({}, { replace: true });
+                    }
+                }
+            } catch (err) {
+                console.error("Error in Chat initialization:", err);
             }
         };
+
         fetchData();
-    }, [user.id, user.email]);
+        return () => { isSubscribed = false; };
+    }, [user?.id, user?.email, searchParams, setSearchParams]);
 
     // 2. WebRTC Logic
     const createPeerConnection = async (currentSocket, targetSocketId, email, name, avatar, isInitiator) => {
@@ -260,7 +304,7 @@ const Chat = () => {
 
     return (
         <MainLayout showSidebar={true} rightSidebar={null} disableScroll={true}>
-            <div className="flex h-full bg-[#111722] text-white overflow-hidden font-display relative rounded-xl border border-[#232f48] shadow-sm">
+            <div className="flex-1 flex h-full min-h-0 bg-[#111722] text-white overflow-hidden font-display relative rounded-xl border border-[#232f48] shadow-sm mb-4 mx-4 md:mx-0">
                 {/* Incoming Call Modal */}
                 {incomingCall && <IncomingCall callData={incomingCall} onAccept={acceptCall} onReject={() => {
                     socket.emit('reject-call', { to: incomingCall.from });
@@ -307,16 +351,19 @@ const Chat = () => {
                                 </div>
                                 <input
                                     className="flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-white focus:outline-0 border-none bg-transparent h-full placeholder:text-[#92a4c9] px-3 rounded-l-none border-l-0 text-sm font-normal"
-                                    placeholder="Search chats"
+                                    placeholder="Search chats or emails..."
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
                                 />
                             </div>
                         </label>
                     </div>
                     <UserList
                         chats={chats}
-                        onSelect={setSelectedChat}
+                        onSelect={handleSelectChat}
                         selectedChatId={selectedChat?.id}
                         currentUserEmail={user.email}
+                        searchQuery={searchQuery}
                     />
                 </aside>
 

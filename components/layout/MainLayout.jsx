@@ -24,7 +24,7 @@ const MainLayout = ({ children, rightSidebar, showSidebar = true, disableScroll 
             )}
 
             {/* Main Content Area */}
-            <main className="flex-1 flex flex-col h-full overflow-hidden relative transition-all duration-300 w-full">
+            <main className="flex-1 flex flex-col min-h-0 relative transition-all duration-300 w-full">
                 {/* Mobile Header (Visible only on small screens) */}
                 <div className="md:hidden sticky top-0 z-20">
                     <TopNav showSearch={false} onMenuClick={() => setIsMobileMenuOpen(true)} />
@@ -33,13 +33,13 @@ const MainLayout = ({ children, rightSidebar, showSidebar = true, disableScroll 
                 {/* Content Wrapper */}
                 {disableScroll ? (
                     // For pages that handle their own scrolling (Chat, Search)
-                    <div className="flex-1 h-full w-full overflow-hidden relative flex flex-col">
+                    <div className="flex-1 w-full overflow-hidden relative flex flex-col min-h-0">
                         {children}
                     </div>
                 ) : (
                     // For standard pages (Feed, Profile, etc.) - Centralized logic
-                    <div className="flex-1 overflow-y-auto px-4 md:px-8 py-6 scrollbar-thin scrollbar-thumb-slate-200 dark:scrollbar-thumb-slate-700">
-                        <div className="max-w-7xl mx-auto min-h-full">
+                    <div className="flex-1 overflow-y-auto px-4 md:px-8 py-6 scrollbar-thin">
+                        <div className="max-w-7xl mx-auto min-h-full flex flex-col">
                             {children}
                         </div>
                     </div>
